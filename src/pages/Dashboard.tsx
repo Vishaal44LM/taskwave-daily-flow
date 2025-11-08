@@ -1,9 +1,10 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { DndContext, DragEndEvent, DragOverEvent, DragStartEvent, PointerSensor, useSensor, useSensors } from "@dnd-kit/core";
 import { arrayMove } from "@dnd-kit/sortable";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { TaskColumn } from "@/components/tasks/TaskColumn";
 import { AddTaskDialog } from "@/components/tasks/AddTaskDialog";
+import { TaskFilters } from "@/components/tasks/TaskFilters";
 import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
@@ -37,6 +38,9 @@ export default function Dashboard() {
   const [editTask, setEditTask] = useState<Task | null>(null);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [session, setSession] = useState<Session | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [priorityFilter, setPriorityFilter] = useState("all");
+  const [statusFilter, setStatusFilter] = useState("all");
   const { toast } = useToast();
 
   const sensors = useSensors(
@@ -213,8 +217,19 @@ export default function Dashboard() {
     }
   };
 
+  const filteredTasks = useMemo(() => {
+    return tasks.filter((task) => {
+      const matchesSearch = task.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        task.description?.toLowerCase().includes(searchQuery.toLowerCase());
+      const matchesPriority = priorityFilter === "all" || task.priority === priorityFilter;
+      const matchesStatus = statusFilter === "all" || task.status === statusFilter;
+      
+      return matchesSearch && matchesPriority && matchesStatus;
+    });
+  }, [tasks, searchQuery, priorityFilter, statusFilter]);
+
   const getTasksByTimeSlot = (timeSlot: string) => {
-    return tasks.filter((task) => task.time_slot === timeSlot);
+    return filteredTasks.filter((task) => task.time_slot === timeSlot);
   };
 
   return (
@@ -248,6 +263,15 @@ export default function Dashboard() {
               Add Task
             </Button>
           </div>
+
+          <TaskFilters
+            searchQuery={searchQuery}
+            onSearchChange={setSearchQuery}
+            priorityFilter={priorityFilter}
+            onPriorityChange={setPriorityFilter}
+            statusFilter={statusFilter}
+            onStatusChange={setStatusFilter}
+          />
 
           <DndContext
             sensors={sensors}
